@@ -85,12 +85,12 @@ spec:
             - name: ADMIN_USER
               valueFrom:
                 secretKeyRef:
-                  name: harness-secret
+                  name: harness-secrets
                   key: mongodbUsername
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: harness-secret
+                  name: harness-secrets
                   key: mongodbPassword
           volumeMounts:
             - name: workdir
