@@ -1,0 +1,217 @@
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: mongodb-replicaset
+  name: mongodb-replicaset-chart
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: mongodb-replicaset
+  serviceName: mongodb-replicaset-chart
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      labels:
+        app: mongodb-replicaset
+      annotations:
+        checksum/config: fca3516170d327de50810cf50494e20bed3e41732799a291de1d1563b1a247cf
+        backup.velero.io/backup-volumes: datadir
+    spec:
+      serviceAccountName: harness-default
+      securityContext:
+        runAsUser: 999
+        fsGroup: 999
+        runAsNonRoot: true
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: copy-config
+          image: {{ .Values.initContainers.copyConfig.image.repository }}:{{ .Values.initContainers.copyConfig.image.tag }}
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - "sh"
+          args:
+            - "-c"
+            - |
+              set -e
+              set -x
+
+              cp /configdb-readonly/mongod.conf /data/configdb/mongod.conf
+              cp /keydir-readonly/key.txt /data/configdb/key.txt
+              chmod 600 /data/configdb/key.txt
+          volumeMounts:
+            - name: workdir
+              mountPath: /work-dir
+            - name: config
+              mountPath: /configdb-readonly
+            - name: configdir
+              mountPath: /data/configdb
+            - name: keydir
+              mountPath: /keydir-readonly
+          resources: {}
+        - name: install
+          image: {{ .Values.initContainers.install.image.repository }}:{{ .Values.initContainers.install.image.tag }}
+          args:
+            - --work-dir=/work-dir
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: workdir
+              mountPath: /work-dir
+          resources: {}
+        - name: bootstrap
+          image: {{ .Values.initContainers.bootstrap.image.repository }}:{{ .Values.initContainers.bootstrap.image.tag }}
+          command:
+            - /work-dir/peer-finder
+          args:
+            - -on-start=/init/on-start.sh
+            - "-service=mongodb-replicaset-chart"
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: REPLICA_SET
+              value: rs0
+            - name: TIMEOUT
+              value: "180"
+            - name: SKIP_INIT
+              value: "false"
+            - name: AUTH
+              value: "true"
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: harness-secret
+                  key: mongodbUsername
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: harness-secret
+                  key: mongodbPassword
+          volumeMounts:
+            - name: workdir
+              mountPath: /work-dir
+            - name: init
+              mountPath: /init
+            - name: configdir
+              mountPath: /data/configdb
+            - name: datadir
+              mountPath: /data/db
+            {{- if .Values.global.mongoSSL }}
+            - name: mongo-ssl-certs
+              mountPath: /data/ssl
+            {{- end }}
+          resources:
+            {}
+      containers:
+        - name: mongodb-replicaset
+          image: {{ include "harnesscommon.names.imagename" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          resources:
+          {{- with .Values.resources}}
+            limits:
+              cpu: {{ .limits.cpu }}
+              memory: {{ .limits.memory }}
+            requests:
+              cpu: {{ .requests.cpu }}
+              memory: {{ .requests.memory }}
+          {{- end }}
+          command:
+            - mongod
+          args:
+            - --config=/data/configdb/mongod.conf
+            - --dbpath=/data/db
+            - --replSet=rs0
+            - --port=27017
+            - --bind_ip=0.0.0.0
+            - --auth
+            - --keyFile=/data/configdb/key.txt
+            - --wiredTigerCacheSizeGB={{ .Values.wiredTigerCacheSizeGB }}
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+          volumeMounts:
+            - name: datadir
+              mountPath: /data/db
+            - name: configdir
+              mountPath: /data/configdb
+            - name: workdir
+              mountPath: /work-dir
+        {{ if .Values.global.mongoSSL }}
+            - name: mongo-ssl-certs
+              mountPath: /data/ssl
+        {{ end }}
+      volumes:
+        - name: config
+          configMap:
+            name: mongodb-replicaset-chart-mongodb
+        - name: init
+          configMap:
+            defaultMode: 0755
+            name: mongodb-replicaset-chart-init
+        - name: keydir
+          secret:
+            defaultMode: 0400
+            secretName: mongodb-replicaset-chart-keyfile
+        - name: workdir
+          emptyDir: {}
+        - name: configdir
+          emptyDir: {}
+        {{ if .Values.global.mongoSSL }}
+        - name: mongo-ssl-certs
+          secret:
+            defaultMode: 0400
+            secretName: mongodb-replicaset-ssl-cert
+        {{ end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: mongodb-replicaset
+              topologyKey: kubernetes.io/hostname
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: datadir
+        annotations:
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: {{ .Values.mongoStorageCapacity }}
+        {{- if .Values.global.storageClassName }}
+        storageClassName: {{ .Values.global.storageClassName}}
+        {{- end }}

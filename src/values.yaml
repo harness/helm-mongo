@@ -1,0 +1,65 @@
+global:
+  mongoSSL: false
+  storageClassName: ""
+  mongo:
+    password: ""
+
+mongo:
+  password: ""
+
+  #mongo:
+
+  # Thinking this needs to be populated by the end user, provide labels specific to
+  # target env, ie "environment: production"
+mongoLabels:
+
+secrets:
+  # Place holder for CA certificate(s)
+  ca_pem: ""
+
+  # Place holder for mongoDB certificate
+  mongodb_pem: ""
+
+  # Place holder for client certificate
+  client_pem: ""
+
+image:
+  tag: 4.2.19
+  repository: harness/mongo
+  pullPolicy: IfNotPresent
+
+initContainers:
+  copyConfig:
+    image:
+      tag: 1.35.0
+      repository: busybox
+  install:
+    image:
+      tag: 0.8
+      repository: harness/mongodb-install
+  bootstrap:
+    image:
+      tag: 4.2.19
+      repository: harness/mongo
+
+labels: ""
+
+annotations: ""
+
+replicas: 1
+
+resources:
+  limits:
+    cpu: 2
+    memory: 4096Mi
+  requests:
+    cpu: 2
+    memory: 4096Mi
+wiredTigerCacheSizeGB: 1
+mongoStorageCapacity: 200Gi
+
+nodeSelector: {}
+
+affinity: {}
+
+tolerations: []
