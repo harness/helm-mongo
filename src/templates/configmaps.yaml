@@ -6,7 +6,7 @@ metadata:
   name: mongodb-replicaset-chart-mongodb
   namespace: {{ .Release.Namespace }}
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "-2" 
 data:
   mongod.conf: | 
@@ -33,7 +33,7 @@ metadata:
   name: mongodb-replicaset-chart-init
   namespace: {{ .Release.Namespace }}
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook": pre-install
     "helm.sh/hook-weight": "-2"
 data:
   on-start.sh: |
