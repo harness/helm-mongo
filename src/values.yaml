@@ -1,16 +1,7 @@
 global:
   mongoSSL: false
   storageClassName: ""
-  mongo:
-    password: ""
 
-mongo:
-  password: ""
-
-  #mongo:
-
-  # Thinking this needs to be populated by the end user, provide labels specific to
-  # target env, ie "environment: production"
 mongoLabels:
 
 secrets:
