@@ -15,23 +15,31 @@ secrets:
   client_pem: ""
 
 image:
+  registry: docker.io
   tag: 4.2.19
   repository: harness/mongo
   pullPolicy: IfNotPresent
+  digest: ""
 
 initContainers:
   copyConfig:
     image:
+      registry: docker.io
       tag: 1.35.0
       repository: busybox
+      digest: ""
   install:
     image:
+      registry: docker.io
       tag: 0.8
       repository: harness/mongodb-install
+      digest: ""
   bootstrap:
     image:
+      registry: docker.io
       tag: 4.2.19
       repository: harness/mongo
+      digest: ""
 
 labels: ""
 

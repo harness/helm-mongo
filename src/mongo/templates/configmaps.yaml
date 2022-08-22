@@ -7,9 +7,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "-2" 
+    "helm.sh/hook-weight": "-2"
 data:
-  mongod.conf: | 
+  mongod.conf: |
 {{- if .Values.global.mongoSSL }}
     security:
       clusterAuthMode: x509
@@ -38,7 +38,7 @@ metadata:
 data:
   on-start.sh: |
     #!/usr/bin/env bash
-    
+
     # Copyright 2018 The Kubernetes Authors. All rights reserved.
     #
     # Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,15 +52,15 @@ data:
     # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     # See the License for the specific language governing permissions and
     # limitations under the License.
-    
+
     set -e pipefail
-    
+
     port=27017
     replica_set="$REPLICA_SET"
     script_name=${0##*/}
     SECONDS=0
     timeout="${TIMEOUT:-900}"
-    
+
     if [[ "$AUTH" == "true" ]]; then
         admin_user="$ADMIN_USER"
         admin_password="$ADMIN_PASSWORD"
@@ -71,28 +71,28 @@ data:
         fi
         auth_args=("--auth" "--keyFile=/data/configdb/key.txt")
     fi
-    
+
     log() {
         local msg="$1"
         local timestamp
         timestamp=$(date --iso-8601=ns)
         echo "[$timestamp] [$script_name] $msg" 2>&1 | tee -a /work-dir/log.txt 1>&2
     }
-    
+
     retry_until() {
         local host="${1}"
         local command="${2}"
         local expected="${3}"
         local creds=("${admin_creds[@]}")
-    
+
         # Don't need credentials for admin user creation and pings that run on localhost
         if [[ "${host}" =~ ^localhost ]]; then
             creds=()
         fi
-    
+
         until [[ $(mongo admin --host "${host}" "${creds[@]}" "${ssl_args[@]}" --quiet --eval "${command}" | tail -n1) == "${expected}" ]]; do
             sleep 1
-    
+
             if (! ps "${pid}" &>/dev/null); then
                 log "mongod shutdown unexpectedly"
                 exit 1
@@ -101,11 +101,11 @@ data:
                 log "Timed out after ${timeout}s attempting to bootstrap mongod"
                 exit 1
             fi
-    
+
             log "Retrying ${command} on ${host}"
         done
     }
-    
+
     shutdown_mongo() {
         local host="${1:-localhost}"
         local args='force: true'
@@ -115,7 +115,7 @@ data:
           kill -TERM "${pid}"
         fi
     }
-    
+
     ca_pem=/data/ssl/ca.pem
     if [ -f "$ca_pem"  ]; then
       client_pem=/data/ssl/client.pem
@@ -125,7 +125,7 @@ data:
 
     my_hostname=$(hostname)
     log "Bootstrapping MongoDB replica set member: $my_hostname"
-    
+
     log "Reading standard input..."
     while read -ra line; do
         if [[ "${line}" == *"${my_hostname}"* ]]; then
@@ -133,23 +133,23 @@ data:
         fi
         peers=("${peers[@]}" "$line")
     done
-    
-    
+
+
     if [[ "${SKIP_INIT}" == "true" ]]; then
         log "Skipping initialization"
         exit 0
     fi
-    
+
     log "Peers: ${peers[*]}"
     log "Starting a MongoDB replica"
     mongod --config /data/configdb/mongod.conf --dbpath=/data/db --replSet="$replica_set" --port="${port}" "${auth_args[@]}" --bind_ip=0.0.0.0 2>&1 | tee -a /work-dir/log.txt 1>&2 &
     pid=$!
     trap shutdown_mongo EXIT
-    
+
     log "Waiting for MongoDB to be ready..."
     retry_until "localhost" "db.adminCommand('ping').ok" "1"
     log "Initialized."
-    
+
     # try to find a master
     for peer in "${peers[@]}"; do
         log "Checking if ${peer} is primary"
@@ -161,7 +161,7 @@ data:
             break
         fi
     done
-    
+
     if [[ "${primary}" = "${service_name}" ]]; then
         log "This replica is already PRIMARY"
     elif [[ -n "${primary}" ]]; then
@@ -172,28 +172,28 @@ data:
               exit 1
           fi
         fi
-    
+
         sleep 3
         log 'Waiting for replica to reach SECONDARY state...'
         retry_until "${service_name}" "rs.status().myState" "2"
         log '✓ Replica reached SECONDARY state.'
-    
+
     elif (mongo "${ssl_args[@]}" --eval "rs.status()" | grep "no replset config has been received"); then
         log "Initiating a new replica set with myself ($service_name)..."
         mongo "${ssl_args[@]}" --eval "rs.initiate({'_id': '$replica_set', 'members': [{'_id': 0, 'host': '$service_name'}]})"
-    
+
         sleep 3
         log 'Waiting for replica to reach PRIMARY state...'
         retry_until "localhost" "db.isMaster().ismaster" "true"
         primary="${service_name}"
         log '✓ Replica reached PRIMARY state.'
-    
+
         if [[ "${AUTH}" == "true" ]]; then
             log "Creating admin user..."
             mongo admin "${ssl_args[@]}" --eval "db.createUser({user: '${admin_user}', pwd: '${admin_password}', roles: [{role: 'root', db: 'admin'}]})"
         fi
     fi
-    
+
     # User creation
     if [[ -n "${primary}" && "$AUTH" == "true" && "$METRICS" == "true" ]]; then
         metric_user_count=$(mongo admin --host "${primary}" "${admin_creds[@]}" "${ssl_args[@]}" --eval "db.system.users.find({user: '${metrics_user}'}).count()" --quiet | tail -n1)
@@ -202,6 +202,6 @@ data:
             mongo admin --host "${primary}" "${admin_creds[@]}" "${ssl_args[@]}" --eval "db.createUser({user: '${metrics_user}', pwd: '${metrics_password}', roles: [{role: 'clusterMonitor', db: 'admin'}, {role: 'read', db: 'local'}]})"
         fi
     fi
-    
+
     log "MongoDB bootstrap complete"
     exit 0
