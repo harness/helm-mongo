@@ -31,7 +31,7 @@ spec:
       terminationGracePeriodSeconds: 30
       initContainers:
         - name: copy-config
-          image: {{ .Values.initContainers.copyConfig.image.repository }}:{{ .Values.initContainers.copyConfig.image.tag }}
+          image:  {{ include "common.images.image" (dict "imageRoot" .Values.initContainers.copyConfig.image "global" .Values.global) }}
           imagePullPolicy: "IfNotPresent"
           command:
             - "sh"
@@ -55,7 +55,7 @@ spec:
               mountPath: /keydir-readonly
           resources: {}
         - name: install
-          image: {{ .Values.initContainers.install.image.repository }}:{{ .Values.initContainers.install.image.tag }}
+          image:  {{ include "common.images.image" (dict "imageRoot" .Values.initContainers.install.image "global" .Values.global) }}
           args:
             - --work-dir=/work-dir
           imagePullPolicy: "IfNotPresent"
@@ -64,7 +64,7 @@ spec:
               mountPath: /work-dir
           resources: {}
         - name: bootstrap
-          image: {{ .Values.initContainers.bootstrap.image.repository }}:{{ .Values.initContainers.bootstrap.image.tag }}
+          image:  {{ include "common.images.image" (dict "imageRoot" .Values.initContainers.bootstrap.image "global" .Values.global) }}
           command:
             - /work-dir/peer-finder
           args:
@@ -112,7 +112,7 @@ spec:
             {}
       containers:
         - name: mongodb-replicaset
-          image: {{ include "harnesscommon.names.imagename" . }}
+          image:  {{ include "common.images.image" (dict "imageRoot" .Values.image "global" .Values.global) }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: mongodb
