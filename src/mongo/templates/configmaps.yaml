@@ -5,9 +5,7 @@ metadata:
     app: mongodb-replicaset
   name: mongodb-replicaset-chart-mongodb
   namespace: {{ .Release.Namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "-2"
+  annotations: {}
 data:
   mongod.conf: |
 {{- if .Values.global.mongoSSL }}
@@ -32,9 +30,7 @@ metadata:
     app: mongodb-replicaset
   name: mongodb-replicaset-chart-init
   namespace: {{ .Release.Namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "-2"
+  annotations: {}
 data:
   on-start.sh: |
     #!/usr/bin/env bash
