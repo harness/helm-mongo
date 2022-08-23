@@ -3,6 +3,23 @@ entries:
   mongo:
   - apiVersion: v2
     appVersion: 0.0.1
+    created: "2022-08-23T15:51:45.535436489Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      version: 2.x.x
+    - name: harness-common
+      repository: https://harness.github.io/helm-common
+      version: 1.x.x
+    description: A Helm chart for Kubernetes
+    digest: c6e82a3e1abc00c5ce17ccabe90631fa6f6260a1a78d66093856ea90d969b6cf
+    name: mongo
+    type: application
+    urls:
+    - https://github.com/harness/helm-mongo/releases/download/mongo-0.2.1/mongo-0.2.1.tgz
+    version: 0.2.1
+  - apiVersion: v2
+    appVersion: 0.0.1
     created: "2022-08-22T22:26:15.895289447Z"
     dependencies:
     - name: common
@@ -18,4 +35,4 @@ entries:
     urls:
     - https://github.com/harness/helm-mongo/releases/download/mongo-0.2.0/mongo-0.2.0.tgz
     version: 0.2.0
-generated: "2022-08-22T22:26:15.895297147Z"
+generated: "2022-08-23T15:51:45.53545109Z"
