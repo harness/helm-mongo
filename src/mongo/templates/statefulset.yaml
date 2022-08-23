@@ -6,9 +6,7 @@ metadata:
     app: mongodb-replicaset
   name: mongodb-replicaset-chart
   namespace: {{ .Release.Namespace }}
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "-2"
+  annotations: {}
 spec:
   selector:
     matchLabels:
@@ -88,13 +86,13 @@ spec:
             - name: ADMIN_USER
               valueFrom:
                 secretKeyRef:
-                  name: harness-secrets
-                  key: mongodbUsername
+                  name: {{ .Values.mongoSecrets.adminUser.name }}
+                  key: {{ .Values.mongoSecrets.adminUser.key }}
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: harness-secrets
-                  key: mongodbPassword
+                  name: {{ .Values.mongoSecrets.adminPassword.name }}
+                  key: {{ .Values.mongoSecrets.adminPassword.key }}
           volumeMounts:
             - name: workdir
               mountPath: /work-dir
